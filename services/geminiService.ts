@@ -36,23 +36,39 @@ const fileToBase64 = (file: File): Promise<string> => {
  * @returns {string} - User-friendly error message in Vietnamese
  */
 const parseApiError = (error: any): string => {
-  // Check if it's a 503 Service Unavailable error
-  if (error instanceof Error && error.message.includes('503')) {
+  // Check for 503 Service Unavailable error in various possible locations
+  const errorString = error.toString();
+  const errorMessage = error.message || '';
+  
+  // Check if error contains 503 code or service unavailable message
+  if (errorString.includes('503') || 
+      errorMessage.includes('503') ||
+      errorString.includes('service is currently unavailable') ||
+      errorString.includes('UNAVAILABLE')) {
     return 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
   }
   
-  // Try to parse JSON error response
+  // Try to extract error details from nested structures
   try {
-    const errorStr = error.toString();
-    if (errorStr.includes('{"error"')) {
-      const jsonMatch = errorStr.match(/\{"error".*\}/);
+    // Check for nested error structures common in API libraries
+    let errorData = null;
+    
+    if (error.response?.data) {
+      errorData = error.response.data;
+    } else if (error.details) {
+      errorData = error.details;
+    } else if (errorString.includes('{"error"')) {
+      const jsonMatch = errorString.match(/\{"error".*\}/);
       if (jsonMatch) {
-        const errorObj = JSON.parse(jsonMatch[0]);
-        if (errorObj.error?.code === 503) {
-          return 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
-        } else if (errorObj.error?.message) {
-          return `Lỗi API: ${errorObj.error.message}`;
-        }
+        errorData = JSON.parse(jsonMatch[0]);
+      }
+    }
+    
+    if (errorData?.error) {
+      if (errorData.error.code === 503 || errorData.error.status === 'UNAVAILABLE') {
+        return 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
+      } else if (errorData.error.message) {
+        return `Lỗi API: ${errorData.error.message}`;
       }
     }
   } catch (parseError) {
