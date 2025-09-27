@@ -1,0 +1,5 @@
+{
+  "name": "Tạo Prompt và Chỉnh sửa ảnh",
+  "description": "Tải lên một hình ảnh để tạo ra một prompt mô tả chi tiết, nghệ thuật bằng AI, sẵn sàng để sử dụng cho các trình tạo hình ảnh khác.",
+  "requestFramePermissions": []
+}
