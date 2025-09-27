@@ -101,8 +101,31 @@ export const generatePromptFromImage = async (imageFile: File): Promise<{ malePr
     return JSON.parse(text);
   } catch (error) {
     console.error("Lỗi khi giao tiếp với Gemini API:", error);
+    
+    // Xử lý lỗi API một cách thân thiện với người dùng
     if (error instanceof Error) {
-        throw error; // Ném lại lỗi gốc để giữ nguyên thông điệp lỗi.
+        const errorMessage = error.message;
+        
+        // Kiểm tra nếu là lỗi 503 Service Unavailable
+        if (errorMessage.includes('"code":503') || errorMessage.includes('service is currently unavailable')) {
+            throw new Error("Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.");
+        }
+        
+        // Kiểm tra các lỗi API khác
+        if (errorMessage.includes('"code":')) {
+            try {
+                const errorObj = JSON.parse(errorMessage);
+                if (errorObj.error && errorObj.error.message) {
+                    throw new Error(`Lỗi từ dịch vụ AI: ${errorObj.error.message}`);
+                }
+            } catch (parseError) {
+                // Nếu không parse được JSON, sử dụng thông báo chung
+                throw new Error("Có lỗi xảy ra khi kết nối với dịch vụ AI. Vui lòng thử lại.");
+            }
+        }
+        
+        // Ném lại lỗi gốc nếu không phải lỗi API
+        throw error;
     }
     throw new Error("Không thể tạo prompt từ hình ảnh do một lỗi không xác định.");
   }
@@ -166,8 +189,30 @@ export const editImageWithPrompt = async (imageFile: File, prompt: string): Prom
 
     } catch (error) {
         console.error("Lỗi khi chỉnh sửa ảnh với Gemini API:", error);
-        // Ném lại lỗi để thành phần UI có thể bắt và hiển thị thông báo.
+        
+        // Xử lý lỗi API một cách thân thiện với người dùng
         if (error instanceof Error) {
+            const errorMessage = error.message;
+            
+            // Kiểm tra nếu là lỗi 503 Service Unavailable
+            if (errorMessage.includes('"code":503') || errorMessage.includes('service is currently unavailable')) {
+                throw new Error("Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.");
+            }
+            
+            // Kiểm tra các lỗi API khác
+            if (errorMessage.includes('"code":')) {
+                try {
+                    const errorObj = JSON.parse(errorMessage);
+                    if (errorObj.error && errorObj.error.message) {
+                        throw new Error(`Lỗi từ dịch vụ AI: ${errorObj.error.message}`);
+                    }
+                } catch (parseError) {
+                    // Nếu không parse được JSON, sử dụng thông báo chung
+                    throw new Error("Có lỗi xảy ra khi kết nối với dịch vụ AI. Vui lòng thử lại.");
+                }
+            }
+            
+            // Ném lại lỗi gốc nếu không phải lỗi API
             throw error;
         }
         throw new Error("Không thể chỉnh sửa hình ảnh do một lỗi không xác định.");
