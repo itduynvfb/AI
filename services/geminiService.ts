@@ -2,13 +2,13 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 // Kiểm tra xem API key đã được cung cấp trong biến môi trường chưa.
 // Đây là một bước bảo mật quan trọng để tránh lộ key trong mã nguồn.
-if (!process.env.API_KEY) {
+if (!process.env.GEMINI_API_KEY) {
   throw new Error("API_KEY chưa được thiết lập trong biến môi trường.");
 }
 
 // Khởi tạo một thực thể của GoogleGenAI với API key.
 // Đây là đối tượng chính để tương tác với các mô hình của Gemini.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 /**
  * Hàm tiện ích chuyển đổi một đối tượng File sang chuỗi Base64.
