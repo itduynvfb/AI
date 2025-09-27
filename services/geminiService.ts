@@ -31,6 +31,38 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 /**
+ * Helper function to parse and transform API errors into user-friendly messages
+ * @param {any} error - The error object from the API
+ * @returns {string} - User-friendly error message in Vietnamese
+ */
+const parseApiError = (error: any): string => {
+  // Check if it's a 503 Service Unavailable error
+  if (error instanceof Error && error.message.includes('503')) {
+    return 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
+  }
+  
+  // Try to parse JSON error response
+  try {
+    const errorStr = error.toString();
+    if (errorStr.includes('{"error"')) {
+      const jsonMatch = errorStr.match(/\{"error".*\}/);
+      if (jsonMatch) {
+        const errorObj = JSON.parse(jsonMatch[0]);
+        if (errorObj.error?.code === 503) {
+          return 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
+        } else if (errorObj.error?.message) {
+          return `Lỗi API: ${errorObj.error.message}`;
+        }
+      }
+    }
+  } catch (parseError) {
+    // If JSON parsing fails, use the default message
+  }
+  
+  return 'Có lỗi xảy ra khi giao tiếp với dịch vụ AI.';
+};
+
+/**
  * Gửi một hình ảnh đến Gemini API để tạo ra hai prompt mô tả bằng TIẾNG ANH.
  * @param {File} imageFile - File ảnh mà người dùng đã tải lên.
  * @returns {Promise<{ malePrompt: string; femalePrompt: string }>} - Một promise trả về đối tượng chứa hai prompt.
@@ -101,58 +133,7 @@ export const generatePromptFromImage = async (imageFile: File): Promise<{ malePr
     return JSON.parse(text);
   } catch (error) {
     console.error("Lỗi khi giao tiếp với Gemini API:", error);
-    
-    // Handle specific API errors
-    if (error instanceof Error && error.message.includes('503')) {
-      throw new Error('Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.');
-    }
-    
-    // Try to parse JSON error response
-    let errorMessage = 'Có lỗi xảy ra khi giao tiếp với dịch vụ AI.';
-    try {
-      const errorStr = error.toString();
-      if (errorStr.includes('{"error"')) {
-        const jsonMatch = errorStr.match(/\{"error".*\}/);
-        if (jsonMatch) {
-          const errorObj = JSON.parse(jsonMatch[0]);
-          if (errorObj.error?.code === 503) {
-            errorMessage = 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
-          } else if (errorObj.error?.message) {
-            errorMessage = `Lỗi API: ${errorObj.error.message}`;
-          }
-        }
-      }
-    } catch (parseError) {
-      // If JSON parsing fails, use the default message
-    }
-    
-    throw new Error(errorMessage);
-    // Xử lý lỗi API một cách thân thiện với người dùng
-    if (error instanceof Error) {
-        const errorMessage = error.message;
-        
-        // Kiểm tra nếu là lỗi 503 Service Unavailable
-        if (errorMessage.includes('"code":503') || errorMessage.includes('service is currently unavailable')) {
-            throw new Error("Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.");
-        }
-        
-        // Kiểm tra các lỗi API khác
-        if (errorMessage.includes('"code":')) {
-            try {
-                const errorObj = JSON.parse(errorMessage);
-                if (errorObj.error && errorObj.error.message) {
-                    throw new Error(`Lỗi từ dịch vụ AI: ${errorObj.error.message}`);
-                }
-            } catch (parseError) {
-                // Nếu không parse được JSON, sử dụng thông báo chung
-                throw new Error("Có lỗi xảy ra khi kết nối với dịch vụ AI. Vui lòng thử lại.");
-            }
-        }
-        
-        // Ném lại lỗi gốc nếu không phải lỗi API
-        throw error;
-    }
-    throw new Error("Không thể tạo prompt từ hình ảnh do một lỗi không xác định.");
+    throw new Error(parseApiError(error));
   }
 };
 
@@ -214,32 +195,6 @@ export const editImageWithPrompt = async (imageFile: File, prompt: string): Prom
 
     } catch (error) {
         console.error("Lỗi khi chỉnh sửa ảnh với Gemini API:", error);
-        
-        // Xử lý lỗi API một cách thân thiện với người dùng
-        if (error instanceof Error) {
-            const errorMessage = error.message;
-            
-            // Kiểm tra nếu là lỗi 503 Service Unavailable
-            if (errorMessage.includes('"code":503') || errorMessage.includes('service is currently unavailable')) {
-                throw new Error("Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.");
-            }
-            
-            // Kiểm tra các lỗi API khác
-            if (errorMessage.includes('"code":')) {
-                try {
-                    const errorObj = JSON.parse(errorMessage);
-                    if (errorObj.error && errorObj.error.message) {
-                        throw new Error(`Lỗi từ dịch vụ AI: ${errorObj.error.message}`);
-                    }
-                } catch (parseError) {
-                    // Nếu không parse được JSON, sử dụng thông báo chung
-                    throw new Error("Có lỗi xảy ra khi kết nối với dịch vụ AI. Vui lòng thử lại.");
-                }
-            }
-            
-            // Ném lại lỗi gốc nếu không phải lỗi API
-            throw error;
-        }
-        throw new Error("Không thể chỉnh sửa hình ảnh do một lỗi không xác định.");
+        throw new Error(parseApiError(error));
     }
 };
