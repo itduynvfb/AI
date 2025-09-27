@@ -102,6 +102,31 @@ export const generatePromptFromImage = async (imageFile: File): Promise<{ malePr
   } catch (error) {
     console.error("Lỗi khi giao tiếp với Gemini API:", error);
     
+    // Handle specific API errors
+    if (error instanceof Error && error.message.includes('503')) {
+      throw new Error('Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.');
+    }
+    
+    // Try to parse JSON error response
+    let errorMessage = 'Có lỗi xảy ra khi giao tiếp với dịch vụ AI.';
+    try {
+      const errorStr = error.toString();
+      if (errorStr.includes('{"error"')) {
+        const jsonMatch = errorStr.match(/\{"error".*\}/);
+        if (jsonMatch) {
+          const errorObj = JSON.parse(jsonMatch[0]);
+          if (errorObj.error?.code === 503) {
+            errorMessage = 'Dịch vụ AI hiện tại không khả dụng. Vui lòng thử lại sau vài phút.';
+          } else if (errorObj.error?.message) {
+            errorMessage = `Lỗi API: ${errorObj.error.message}`;
+          }
+        }
+      }
+    } catch (parseError) {
+      // If JSON parsing fails, use the default message
+    }
+    
+    throw new Error(errorMessage);
     // Xử lý lỗi API một cách thân thiện với người dùng
     if (error instanceof Error) {
         const errorMessage = error.message;
